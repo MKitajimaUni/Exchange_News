@@ -1,7 +1,7 @@
 "use client"
 
-import { useEffect, useState } from "react";
-import { LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid, ResponsiveContainer } from "recharts";
+import {useEffect, useState} from "react";
+import {LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid, ResponsiveContainer} from "recharts";
 
 type CurrentCurrency = {
     date: string;
@@ -10,6 +10,13 @@ type CurrentCurrency = {
     USD: number;
     AUD: number;
     GBP: number;
+    CNY: number; // 中国人民元
+    KRW: number; // 韓国ウォン
+    SGD: number; // シンガポールドル
+    HKD: number; // 香港ドル
+    CAD: number; // カナダドル
+    NZD: number; // ニュージーランドドル
+    CHF: number; // スイスフラン
 };
 
 type NewsResult = {
@@ -97,7 +104,21 @@ export default function HomePage() {
         try {
             const res = await fetch(`/api/currency_latest?base=${encodeURIComponent(selectedBase)}&currencies=JPY`);
             const data = await res.json();
-            setRate({ date: new Date().toISOString().split("T")[0], JPY: data.data.JPY.value, EUR: 0, USD: 0, AUD: 0, GBP: 0 });
+            setRate({
+                date: new Date().toISOString().split("T")[0],
+                JPY: data.data.JPY.value,
+                EUR: 0,
+                USD: 0,
+                AUD: 0,
+                GBP: 0,
+                CNY: 0,
+                KRW: 0,
+                SGD: 0,
+                HKD: 0,
+                CAD: 0,
+                NZD: 0,
+                CHF: 0
+            });
             setBase(selectedBase);
         } catch (error) {
             console.error(error);
@@ -113,7 +134,20 @@ export default function HomePage() {
         try {
             const res = await fetch(`/api/currency_history?base=${encodeURIComponent(selectedBase)}&currencies=JPY&date=${date}`);
             const data = await res.json();
-            setHistoryRate({ date, JPY: data.data.JPY.value, EUR: 0, USD: 0, AUD: 0, GBP: 0 });
+            setHistoryRate({
+                date, JPY: data.data.JPY.value,
+                EUR: 0,
+                USD: 0,
+                AUD: 0,
+                GBP: 0,
+                CNY: 0,
+                KRW: 0,
+                SGD: 0,
+                HKD: 0,
+                CAD: 0,
+                NZD: 0,
+                CHF: 0
+            });
             setBase(selectedBase);
         } catch (error) {
             console.error(error);
@@ -126,24 +160,64 @@ export default function HomePage() {
     const fetchWeeklyRateTimeSeries = async () => {
         if (!selectedBase) return;
         setLoading(true);
+
+        setWeeklyRateTimeSeries({}); // important for clear because state is async
         const newSeries: Record<string, CurrentCurrency> = {};
 
         try {
+            const rateDates: string[] = [];
             for (let i = 1; i < WEEK_LENGTH; i++) {
                 const d = new Date();
                 d.setDate(d.getDate() - i);
                 const rateDate = d.toISOString().split("T")[0];
+                rateDates.push(rateDate);
+            }
 
-                const res = await fetch(`/api/currency_history?base=${encodeURIComponent(selectedBase)}&currencies=JPY&date=${rateDate}`);
-                const data = await res.json();
+            const results: Response[] = await Promise.all(
+                rateDates.map((rateDate) => {
+                        return fetch(`/api/currency_history?base=${encodeURIComponent(selectedBase)}&currencies=JPY&date=${rateDate}`);
+                    }
+                )
+            )
 
-                newSeries[rateDate] = { date: rateDate, JPY: data.data.JPY.value, EUR: 0, USD: 0, AUD: 0, GBP: 0 };
+            for (const result of results) {
+                const json = await result.json();
+                const date: string = json.meta.last_updated_at.split("T")[0];
+                newSeries[date] = {
+                    date: date,
+                    JPY: json.data.JPY.value,
+                    EUR: 0,
+                    USD: 0,
+                    AUD: 0,
+                    GBP: 0,
+                    CNY: 0,
+                    KRW: 0,
+                    SGD: 0,
+                    HKD: 0,
+                    CAD: 0,
+                    NZD: 0,
+                    CHF: 0
+                };
             }
 
             const res = await fetch(`/api/currency_latest?base=${encodeURIComponent(selectedBase)}&currencies=JPY`);
             const latest = await res.json();
             const today = currentDate.toISOString().split("T")[0];
-            newSeries[today] = { date: today, JPY: latest.data.JPY.value, EUR: 0, USD: 0, AUD: 0, GBP: 0 };
+            newSeries[today] = {
+                date: today,
+                JPY: latest.data.JPY.value,
+                EUR: 0,
+                USD: 0,
+                AUD: 0,
+                GBP: 0,
+                CNY: 0,
+                KRW: 0,
+                SGD: 0,
+                HKD: 0,
+                CAD: 0,
+                NZD: 0,
+                CHF: 0
+            };
 
             setWeeklyRateTimeSeries(newSeries);
         } catch (error) {
@@ -224,9 +298,16 @@ export default function HomePage() {
                         onChange={(e) => setSelectedBase(e.target.value)}
                     >
                         <option value="USD">🇺🇸 USD</option>
+                        <option value="CNY">🇨🇳 CNY</option>
                         <option value="EUR">🇪🇺 EUR</option>
                         <option value="GBP">🇬🇧 GBP</option>
                         <option value="AUD">🇦🇺 AUD</option>
+                        <option value="KRW">🇰🇷 KRW</option>
+                        <option value="SGD">🇸🇬 SGD</option>
+                        <option value="HKD">🇭🇰 HKD</option>
+                        <option value="CAD">🇨🇦 CAD</option>
+                        <option value="NZD">🇳🇿 NZD</option>
+                        <option value="CHF">🇨🇭 CHF</option>
                     </select>
                     <button className="btn btn-primary" onClick={() => {
                         const date = new Date();
@@ -282,7 +363,12 @@ export default function HomePage() {
                                 {/* 左側: グラフ（アスペクト比固定） */}
                                 <div className="col-md-8">
                                     {Object.keys(weeklyRateTimeSeries || {}).length > 0 ? (
-                                        <div style={{ alignContent: "center", width: "100%", height: "100%", minHeight: "150px"}}>
+                                        <div style={{
+                                            alignContent: "center",
+                                            width: "100%",
+                                            height: "100%",
+                                            minHeight: "150px"
+                                        }}>
                                             <ResponsiveContainer width="100%" height="100%">
                                                 <LineChart
                                                     data={Object.entries(weeklyRateTimeSeries || {})
