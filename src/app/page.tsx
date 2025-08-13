@@ -1,7 +1,7 @@
-"use client";
+"use client"
 
-import {useEffect, useState} from "react";
-import {LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid, ResponsiveContainer} from "recharts";
+import { useEffect, useState } from "react";
+import { LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid, ResponsiveContainer } from "recharts";
 
 type CurrentCurrency = {
     date: string;
@@ -13,21 +13,18 @@ type CurrentCurrency = {
 };
 
 type NewsResult = {
-    position: number,
-    title: string,
-    link: string,
-    source: string,
-    thumbnail: string,
-    snippet: string,
-    date: string
+    position: number;
+    title: string;
+    link: string;
+    source: string;
+    thumbnail: string;
+    snippet: string;
+    date: string;
 };
-
-type NewsMetadata = {};
-
 
 export default function HomePage() {
     const [base, setBase] = useState("JPY");
-    const [selectedBase, setSelectedBase] = useState("USD"); // grid initialized usd
+    const [selectedBase, setSelectedBase] = useState("USD");
     const [rate, setRate] = useState<CurrentCurrency>();
     const [currentDate, setCurrentDate] = useState<Date>(new Date());
     const [historyRate, setHistoryRate] = useState<CurrentCurrency>();
@@ -46,9 +43,9 @@ export default function HomePage() {
                 const rates = data.data;
 
                 setTopRates({
-                    EUR: Math.floor((1 / rates.EUR) * 100) / 100,
-                    USD: Math.floor((1 / rates.USD) * 100) / 100,
-                    GBP: Math.floor((1 / rates.GBP) * 100) / 100,
+                    EUR: Math.floor((1 / rates.EUR.value) * 100) / 100,
+                    USD: Math.floor((1 / rates.USD.value) * 100) / 100,
+                    GBP: Math.floor((1 / rates.GBP.value) * 100) / 100,
                 });
             } catch (error) {
                 console.error("Failed to fetch top rates:", error);
@@ -58,24 +55,24 @@ export default function HomePage() {
         const fetchHistory = async (date: string) => {
             try {
                 const res = await fetch(`/api/currency_history?base=JPY&date=${date}`);
-                const json = await res.json();
-                const rates = json.data[date];
+                const data = await res.json();
+                const rates = data.data;
 
                 setTopRatesLastweek({
-                    EUR: Math.floor((1 / rates.EUR) * 100) / 100,
-                    USD: Math.floor((1 / rates.USD) * 100) / 100,
-                    GBP: Math.floor((1 / rates.GBP) * 100) / 100,
+                    EUR: Math.floor((1 / rates.EUR.value) * 100) / 100,
+                    USD: Math.floor((1 / rates.USD.value) * 100) / 100,
+                    GBP: Math.floor((1 / rates.GBP.value) * 100) / 100,
                 });
             } catch (error) {
-                console.error("Failed to fetch top rates:", error);
+                console.error("Failed to fetch top rates last week:", error);
             }
         };
 
         const fetchNewsList = async (size: number, query: string) => {
             try {
                 const res = await fetch(`/api/news?size=${size}&query=${query}`);
-                const json = await res.json();
-                setNewsList(json.news_results);
+                const data = await res.json();
+                setNewsList(data.news_results);
             } catch (error) {
                 console.error("Failed to fetch news list:", error);
             }
@@ -84,14 +81,14 @@ export default function HomePage() {
         fetchRate();
 
         const date = new Date();
-        const lastWeek = new Date(date.setDate(date.getDate() - 7));
+        const lastWeek = new Date(date);
+        lastWeek.setDate(date.getDate() - 7);
         fetchHistory(lastWeek.toISOString().split("T")[0]);
 
         setNewsList([]);
         fetchNewsList(5, "為替");
 
-        const currentDate = new Date();
-        setCurrentDate(currentDate);
+        setCurrentDate(new Date());
     }, []);
 
     const fetchSpecificCurrency = async () => {
@@ -100,8 +97,8 @@ export default function HomePage() {
         try {
             const res = await fetch(`/api/currency_latest?base=${encodeURIComponent(selectedBase)}&currencies=JPY`);
             const data = await res.json();
-            setRate(data.data);
-            setBase(selectedBase)
+            setRate({ date: new Date().toISOString().split("T")[0], JPY: data.data.JPY.value, EUR: 0, USD: 0, AUD: 0, GBP: 0 });
+            setBase(selectedBase);
         } catch (error) {
             console.error(error);
             alert("取得に失敗しました: " + error);
@@ -116,9 +113,8 @@ export default function HomePage() {
         try {
             const res = await fetch(`/api/currency_history?base=${encodeURIComponent(selectedBase)}&currencies=JPY&date=${date}`);
             const data = await res.json();
-            setHistoryRate(data.data[date]);
+            setHistoryRate({ date, JPY: data.data.JPY.value, EUR: 0, USD: 0, AUD: 0, GBP: 0 });
             setBase(selectedBase);
-
         } catch (error) {
             console.error(error);
             alert("取得に失敗しました: " + error);
@@ -130,7 +126,6 @@ export default function HomePage() {
     const fetchWeeklyRateTimeSeries = async () => {
         if (!selectedBase) return;
         setLoading(true);
-
         const newSeries: Record<string, CurrentCurrency> = {};
 
         try {
@@ -140,20 +135,17 @@ export default function HomePage() {
                 const rateDate = d.toISOString().split("T")[0];
 
                 const res = await fetch(`/api/currency_history?base=${encodeURIComponent(selectedBase)}&currencies=JPY&date=${rateDate}`);
-                const json = await res.json();
+                const data = await res.json();
 
-                if (!newSeries[rateDate]) {
-                    newSeries[rateDate] = json.data[rateDate];
-                }
+                newSeries[rateDate] = { date: rateDate, JPY: data.data.JPY.value, EUR: 0, USD: 0, AUD: 0, GBP: 0 };
             }
 
             const res = await fetch(`/api/currency_latest?base=${encodeURIComponent(selectedBase)}&currencies=JPY`);
-            const data = await res.json();
+            const latest = await res.json();
+            const today = currentDate.toISOString().split("T")[0];
+            newSeries[today] = { date: today, JPY: latest.data.JPY.value, EUR: 0, USD: 0, AUD: 0, GBP: 0 };
 
-            newSeries[currentDate?.toISOString().split("T")[0]] = data.data;
-
-
-            setWeeklyRateTimeSeries(newSeries); // ← ここでまとめて更新
+            setWeeklyRateTimeSeries(newSeries);
         } catch (error) {
             console.error(error);
             alert("取得に失敗しました: " + error);
@@ -290,7 +282,7 @@ export default function HomePage() {
                                 {/* 左側: グラフ（アスペクト比固定） */}
                                 <div className="col-md-8">
                                     {Object.keys(weeklyRateTimeSeries || {}).length > 0 ? (
-                                        <div style={{width: "100%", height: "100%", minHeight: "150px"}}>
+                                        <div style={{ alignContent: "center", width: "100%", height: "100%", minHeight: "150px"}}>
                                             <ResponsiveContainer width="100%" height="100%">
                                                 <LineChart
                                                     data={Object.entries(weeklyRateTimeSeries || {})

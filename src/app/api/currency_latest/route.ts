@@ -16,7 +16,7 @@ export async function GET(request: Request) {
 
     try {
         const {data} = await axios.get(
-            `https://api.freecurrencyapi.com/v1/latest?apikey=${token}&currencies=&base_currency=${base}`,
+            `https://api.currencyapi.com/v3/latest?apikey=${token}&currencies=&base_currency=${base}`,
         );
         return NextResponse.json(data); //JSON data is capsuled with .data
     } catch (error) {
