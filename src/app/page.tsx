@@ -1,8 +1,10 @@
 "use client";
 
 import {useEffect, useState} from "react";
+import {LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid, ResponsiveContainer} from "recharts";
 
 type CurrentCurrency = {
+    date: string;
     JPY: number;
     EUR: number;
     USD: number;
@@ -27,11 +29,14 @@ export default function HomePage() {
     const [base, setBase] = useState("JPY");
     const [selectedBase, setSelectedBase] = useState("USD"); // grid initialized usd
     const [rate, setRate] = useState<CurrentCurrency>();
+    const [currentDate, setCurrentDate] = useState<Date>(new Date());
     const [historyRate, setHistoryRate] = useState<CurrentCurrency>();
     const [loading, setLoading] = useState(false);
     const [topRates, setTopRates] = useState<{ EUR: number; USD: number; GBP: number }>();
     const [topRatesLastweek, setTopRatesLastweek] = useState<{ EUR: number; USD: number; GBP: number }>();
     const [newsList, setNewsList] = useState<NewsResult[]>([]);
+    const [weeklyRateTimeSeries, setWeeklyRateTimeSeries] = useState<Record<string, CurrentCurrency>>();
+    const WEEK_LENGTH = 7;
 
     useEffect(() => {
         const fetchRate = async () => {
@@ -71,7 +76,6 @@ export default function HomePage() {
                 const res = await fetch(`/api/news?size=${size}&query=${query}`);
                 const json = await res.json();
                 setNewsList(json.news_results);
-
             } catch (error) {
                 console.error("Failed to fetch news list:", error);
             }
@@ -85,13 +89,16 @@ export default function HomePage() {
 
         setNewsList([]);
         fetchNewsList(5, "為替");
+
+        const currentDate = new Date();
+        setCurrentDate(currentDate);
     }, []);
 
     const fetchSpecificCurrency = async () => {
         if (!selectedBase) return;
         setLoading(true);
         try {
-            const res = await fetch(`/api/currency_latest?base=${encodeURIComponent(selectedBase)}`);
+            const res = await fetch(`/api/currency_latest?base=${encodeURIComponent(selectedBase)}&currencies=JPY`);
             const data = await res.json();
             setRate(data.data);
             setBase(selectedBase)
@@ -107,10 +114,46 @@ export default function HomePage() {
         if (!selectedBase) return;
         setLoading(true);
         try {
-            const res = await fetch(`/api/currency_history?base=${encodeURIComponent(selectedBase)}&date=${date}`);
+            const res = await fetch(`/api/currency_history?base=${encodeURIComponent(selectedBase)}&currencies=JPY&date=${date}`);
             const data = await res.json();
             setHistoryRate(data.data[date]);
             setBase(selectedBase);
+
+        } catch (error) {
+            console.error(error);
+            alert("取得に失敗しました: " + error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const fetchWeeklyRateTimeSeries = async () => {
+        if (!selectedBase) return;
+        setLoading(true);
+
+        const newSeries: Record<string, CurrentCurrency> = {};
+
+        try {
+            for (let i = 1; i < WEEK_LENGTH; i++) {
+                const d = new Date();
+                d.setDate(d.getDate() - i);
+                const rateDate = d.toISOString().split("T")[0];
+
+                const res = await fetch(`/api/currency_history?base=${encodeURIComponent(selectedBase)}&currencies=JPY&date=${rateDate}`);
+                const json = await res.json();
+
+                if (!newSeries[rateDate]) {
+                    newSeries[rateDate] = json.data[rateDate];
+                }
+            }
+
+            const res = await fetch(`/api/currency_latest?base=${encodeURIComponent(selectedBase)}&currencies=JPY`);
+            const data = await res.json();
+
+            newSeries[currentDate?.toISOString().split("T")[0]] = data.data;
+
+
+            setWeeklyRateTimeSeries(newSeries); // ← ここでまとめて更新
         } catch (error) {
             console.error(error);
             alert("取得に失敗しました: " + error);
@@ -120,7 +163,7 @@ export default function HomePage() {
     };
 
     const RateCard = ({label, value, diff, date}: { label: string; value: number; diff: number; date: string }) => (
-        <div className="card text-center shadow-sm" style={{width: "10rem"}}>
+        <div className="card text-center shadow-sm" style={{width: "10rem", flex: "0 0 auto"}}>
             <div className="card-body">
                 <small className="text-muted">1 {label}=</small>
                 <h3 className="fw-bold">{value} 円</h3>
@@ -149,7 +192,7 @@ export default function HomePage() {
             <section className="mb-5">
                 <h2 className="mb-4">現在の円為替レート</h2>
                 {topRates && topRatesLastweek ? (
-                    <div className="d-flex gap-4 justify-content-center overflow-auto"
+                    <div className="d-flex gap-4 overflow-auto"
                          style={{flexWrap: "nowrap"}}
                     >
                         <RateCard
@@ -174,6 +217,8 @@ export default function HomePage() {
                 ) : (
                     <p>読み込み中...</p>
                 )}
+                <small
+                    className="text-muted">日付:{currentDate?.toISOString().split("T")[0].replaceAll("-", "/")}</small>
             </section>
 
             {/* search form */}
@@ -197,6 +242,7 @@ export default function HomePage() {
 
                         fetchSpecificCurrency();
                         fetchSpecificHistory(lastWeek.toISOString().split("T")[0]);
+                        fetchWeeklyRateTimeSeries();
                     }
                     }
                     >
@@ -207,17 +253,98 @@ export default function HomePage() {
                 {/* result */}
                 {loading && <p className="mt-3"> 読み込み中...</p>}
                 {rate && historyRate && (
-                    <div className="mt-4">
-                        <RateCard
-                            label={base}
-                            value={Math.floor(rate.JPY * 100) / 100}
-                            diff={Math.floor((rate.JPY - historyRate.JPY) * 100) / 100}
-                            date="先週比"
-                        />
+                    <div className="col-12">
+                        <div className="card shadow-sm border-0">
+                            <div className="row g-0">
+
+                                {/* 右側: 為替レート */}
+                                <div className="col-md-4 d-flex flex-column p-3">
+
+                                    {rate && historyRate ? (
+                                        <div>
+                                            <p className="card-text text-muted mb-2">
+                                                1 {base} = {" "}
+                                            </p>
+                                            <h3 className="fw-bold">
+                                                {Math.floor(rate.JPY * 100) / 100} 円
+                                            </h3>
+                                            <small
+                                                className={`fw-bold ${
+                                                    rate.JPY - historyRate.JPY >= 0
+                                                        ? "text-danger"
+                                                        : "text-success"
+                                                }`}
+                                            >
+                                                {rate.JPY - historyRate.JPY >= 0 ? "+" : "-"}
+                                                {Math.floor(
+                                                    Math.abs(rate.JPY - historyRate.JPY) * 100
+                                                ) / 100}{" "}
+                                                (先週比)
+                                            </small>
+                                        </div>
+                                    ) : (
+                                        <p className="text-muted">レートデータを取得してください</p>
+                                    )}
+                                </div>
+
+                                {/* 左側: グラフ（アスペクト比固定） */}
+                                <div className="col-md-8">
+                                    {Object.keys(weeklyRateTimeSeries || {}).length > 0 ? (
+                                        <div style={{width: "100%", height: "100%", minHeight: "150px"}}>
+                                            <ResponsiveContainer width="100%" height="100%">
+                                                <LineChart
+                                                    data={Object.entries(weeklyRateTimeSeries || {})
+                                                        .map(([date, currency]) => ({
+                                                            date: date,
+                                                            rate: currency.JPY
+                                                        }))
+                                                        .sort(
+                                                            (a, b) =>
+                                                                new Date(a.date).getTime() - new Date(b.date).getTime()
+                                                        )}
+                                                >
+                                                    <CartesianGrid strokeDasharray="3 3"/>
+                                                    <XAxis
+                                                        dataKey="date"
+                                                        tickFormatter={(dateStr) => {
+                                                            const [year, month, day] = dateStr.split("-");
+                                                            return `${month}/${day}`;
+                                                        }}
+                                                    />
+                                                    <YAxis
+                                                        domain={['dataMin', 'dataMax']}
+                                                        allowDecimals={false}/>
+                                                    <Tooltip/>
+                                                    <Line
+                                                        type="monotone"
+                                                        dataKey="rate"
+                                                        stroke="#8884d8"
+                                                        strokeWidth={2}
+                                                    />
+                                                </LineChart>
+                                            </ResponsiveContainer>
+                                        </div>
+                                    ) : (
+                                        <div
+                                            className="bg-light d-flex align-items-center justify-content-center h-100"
+                                            style={{minHeight: "250px"}}
+                                        >
+                                            <span className="text-muted small">データなし</span>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                        <div className="mt-auto d-flex justify-content-between align-items-center">
+                            <small className="text-secondary">
+                                更新日: {new Date().toLocaleDateString()}
+                            </small>
+                        </div>
                     </div>
+
+
                 )}
             </section>
-
             {/* news list */}
             <section>
                 <h2 className="mb-4">円為替に関する最新ニュース</h2>
