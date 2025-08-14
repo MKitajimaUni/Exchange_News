@@ -327,8 +327,11 @@ export default function HomePage() {
                 ) : (
                     <p>読み込み中...</p>
                 )}
-                <small
-                    className="text-muted">日付:{currentDate?.toISOString().split("T")[0].replaceAll("-", "/")}</small>
+                <div className="mt-auto d-flex justify-content-between align-items-center">
+                    <small className="text-secondary">
+                        更新日: {new Date().toLocaleDateString()}
+                    </small>
+                </div>
             </section>
 
             {/* search form */}
