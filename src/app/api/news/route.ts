@@ -1,10 +1,10 @@
 import {NextResponse} from "next/server";
-import axios from "axios";
 
 export async function GET(request: Request) {
     const {searchParams} = new URL(request.url);
     const size = searchParams.get("size");
     const query = searchParams.get("query");
+    const cacheTTL = 1800 // 3 hours, to reduce actual API calls
 
     if (!size) {
         return NextResponse.json({error: "missing parameter"}, {status: 400});
@@ -16,10 +16,11 @@ export async function GET(request: Request) {
     }
 
     try {
-        const {data} = await axios.get(
+        const res = await fetch(
             `https://serpapi.com/search?api_key=${token}&engine=google_news_light&q=${query}&num=${size}`,
+            { next: { revalidate: cacheTTL } }
         );
-
+        const data = await res.json();
         return NextResponse.json(data);
     } catch (error) {
         console.error(error);

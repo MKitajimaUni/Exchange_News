@@ -36,11 +36,22 @@ export default function HomePage() {
     const [currentDate, setCurrentDate] = useState<Date>(new Date());
     const [historyRate, setHistoryRate] = useState<CurrentCurrency>();
     const [loading, setLoading] = useState(false);
-    const [topRates, setTopRates] = useState<{ EUR: number; USD: number; GBP: number }>();
-    const [topRatesLastweek, setTopRatesLastweek] = useState<{ EUR: number; USD: number; GBP: number }>();
+    const [topRates, setTopRates] = useState<CurrentCurrency>();
+    const [topRatesLastweek, setTopRatesLastweek] = useState<CurrentCurrency>();
     const [newsList, setNewsList] = useState<NewsResult[]>([]);
     const [weeklyRateTimeSeries, setWeeklyRateTimeSeries] = useState<Record<string, CurrentCurrency>>();
     const WEEK_LENGTH = 7;
+    const [JPYValue, setJPYValue] = useState<number>(1);
+    const [selectedJPYValue, setSelectedJPYValue] = useState<number>(1);
+
+    const flagMap: Record<string, string> = {
+        USD: "🇺🇸",
+        EUR: "🇪🇺",
+        GBP: "🇬🇧",
+        AUD: "🇦🇺",
+        CNY: "🇨🇳",
+        KRW: "🇰🇷"
+    };
 
     useEffect(() => {
         const fetchRate = async () => {
@@ -50,9 +61,19 @@ export default function HomePage() {
                 const rates = data.data;
 
                 setTopRates({
+                    date: new Date().toISOString().split("T")[0],
                     EUR: Math.floor((1 / rates.EUR.value) * 100) / 100,
                     USD: Math.floor((1 / rates.USD.value) * 100) / 100,
                     GBP: Math.floor((1 / rates.GBP.value) * 100) / 100,
+                    CNY: Math.floor((1 / rates.CNY.value) * 100) / 100,
+                    KRW: Math.floor((1 / rates.KRW.value) * 100) / 100,
+                    SGD: Math.floor((1 / rates.SGD.value) * 100) / 100,
+                    HKD: Math.floor((1 / rates.HKD.value) * 100) / 100,
+                    CAD: Math.floor((1 / rates.CAD.value) * 100) / 100,
+                    NZD: Math.floor((1 / rates.NZD.value) * 100) / 100,
+                    CHF: Math.floor((1 / rates.CHF.value) * 100) / 100,
+                    AUD: Math.floor((1 / rates.AUD.value) * 100) / 100,
+                    JPY: Math.floor((1 / rates.JPY.value) * 100) / 100
                 });
             } catch (error) {
                 console.error("Failed to fetch top rates:", error);
@@ -66,9 +87,19 @@ export default function HomePage() {
                 const rates = data.data;
 
                 setTopRatesLastweek({
+                    date: new Date(new Date().getDate() - 7).toISOString().split("T")[0],
                     EUR: Math.floor((1 / rates.EUR.value) * 100) / 100,
                     USD: Math.floor((1 / rates.USD.value) * 100) / 100,
                     GBP: Math.floor((1 / rates.GBP.value) * 100) / 100,
+                    CNY: Math.floor((1 / rates.CNY.value) * 100) / 100,
+                    KRW: Math.floor((1 / rates.KRW.value) * 100) / 100,
+                    SGD: Math.floor((1 / rates.SGD.value) * 100) / 100,
+                    HKD: Math.floor((1 / rates.HKD.value) * 100) / 100,
+                    CAD: Math.floor((1 / rates.CAD.value) * 100) / 100,
+                    NZD: Math.floor((1 / rates.NZD.value) * 100) / 100,
+                    CHF: Math.floor((1 / rates.CHF.value) * 100) / 100,
+                    AUD: Math.floor((1 / rates.AUD.value) * 100) / 100,
+                    JPY: Math.floor((1 / rates.JPY.value) * 100) / 100
                 });
             } catch (error) {
                 console.error("Failed to fetch top rates last week:", error);
@@ -93,7 +124,7 @@ export default function HomePage() {
         fetchHistory(lastWeek.toISOString().split("T")[0]);
 
         setNewsList([]);
-        fetchNewsList(5, "為替");
+        fetchNewsList(10, "為替"); // initial news list
 
         setCurrentDate(new Date());
     }, []);
@@ -166,7 +197,7 @@ export default function HomePage() {
 
         try {
             const rateDates: string[] = [];
-            for (let i = 1; i < WEEK_LENGTH; i++) {
+            for (let i = 1; i <= WEEK_LENGTH; i++) {
                 const d = new Date();
                 d.setDate(d.getDate() - i);
                 const rateDate = d.toISOString().split("T")[0];
@@ -228,23 +259,36 @@ export default function HomePage() {
         }
     };
 
-    const RateCard = ({label, value, diff, date}: { label: string; value: number; diff: number; date: string }) => (
+    const RateCard = ({label, value, diff, date}: {
+        label: string;
+        value: number;
+        diff: number;
+        date: string
+    }) => (
         <div className="card text-center shadow-sm" style={{width: "10rem", flex: "0 0 auto"}}>
+            <div
+                style={{
+                    position: "absolute",
+                    top: "0.5rem",
+                    left: "0.5rem",
+                    borderRadius: "50%",
+                    width: "2.2rem",
+                    height: "2.2rem",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    fontSize: "1.3rem",
+                    boxShadow: "0 1px 3px rgba(0,0,0,0.2)"
+                }}
+            >
+                {flagMap[label] || "🏳️"}
+            </div>
             <div className="card-body">
                 <small className="text-muted">1 {label}=</small>
                 <h3 className="fw-bold">{value} 円</h3>
                 <small className={`mb-0 fw-bold ${diff >= 0 ? "text-danger" : "text-success"}`}>
-                    {diff >= 0 ? "+" : "-"}{diff}({date})
+                    {diff >= 0 ? "+" : ""}{diff} ({date})
                 </small>
-            </div>
-        </div>
-    );
-
-    const MiniRateCard = ({label, value}: { label: string, value: number }) => (
-        <div className="card text-center shadow-sm" style={{width: "10rem"}}>
-            <div className="card-body">
-                <small className="text-muted">1 {label}=</small>
-                <h3 className="fw-bold">{value} 円</h3>
             </div>
         </div>
     );
@@ -291,27 +335,47 @@ export default function HomePage() {
             <section className="mb-5">
                 <h2 className="mb-3">通貨検索</h2>
                 <div className="d-flex flex-wrap align-items-center gap-2">
-                    <label className="form-label mb-0">通貨を選択:</label>
-                    <select
-                        className="form-select w-auto"
-                        value={selectedBase}
-                        onChange={(e) => setSelectedBase(e.target.value)}
-                    >
-                        <option value="USD">🇺🇸 USD</option>
-                        <option value="CNY">🇨🇳 CNY</option>
-                        <option value="EUR">🇪🇺 EUR</option>
-                        <option value="GBP">🇬🇧 GBP</option>
-                        <option value="AUD">🇦🇺 AUD</option>
-                        <option value="KRW">🇰🇷 KRW</option>
-                        <option value="SGD">🇸🇬 SGD</option>
-                        <option value="HKD">🇭🇰 HKD</option>
-                        <option value="CAD">🇨🇦 CAD</option>
-                        <option value="NZD">🇳🇿 NZD</option>
-                        <option value="CHF">🇨🇭 CHF</option>
-                    </select>
+                    <div className="d-flex align-items-center gap-1">
+                        <label className="form-label mb-0">通貨を選択:</label>
+                        <select
+                            className="form-select w-auto"
+                            value={selectedBase}
+                            onChange={(e) => setSelectedBase(e.target.value)}
+                        >
+                            <option value="USD">🇺🇸 USD</option>
+                            <option value="CNY">🇨🇳 CNY</option>
+                            <option value="EUR">🇪🇺 EUR</option>
+                            <option value="GBP">🇬🇧 GBP</option>
+                            <option value="AUD">🇦🇺 AUD</option>
+                            <option value="KRW">🇰🇷 KRW</option>
+                            <option value="SGD">🇸🇬 SGD</option>
+                            <option value="HKD">🇭🇰 HKD</option>
+                            <option value="CAD">🇨🇦 CAD</option>
+                            <option value="NZD">🇳🇿 NZD</option>
+                            <option value="CHF">🇨🇭 CHF</option>
+                        </select>
+                    </div>
+                    <div className="d-flex align-items-center gap-1">
+                        <label className="form-label mb-0 ms-2">金額（円）:</label>
+                        <input
+                            type="number"
+                            className="form-control w-auto"
+                            min="1"
+                            step="1"
+                            placeholder="1"
+                            style={{maxWidth: "6rem"}}
+                            onChange={(e) => {
+                                const val = Number(e.target.value);
+                                isNaN(val) || val < 1 ? setSelectedJPYValue(1) : setSelectedJPYValue(val);
+                            }}
+                        />
+                    </div>
                     <button className="btn btn-primary" onClick={() => {
                         const date = new Date();
                         const lastWeek = new Date(date.setDate(date.getDate() - 7));
+
+                        isNaN(JPYValue) || JPYValue < 1 ? setJPYValue(1): setJPYValue(selectedJPYValue);
+
 
                         fetchSpecificCurrency();
                         fetchSpecificHistory(lastWeek.toISOString().split("T")[0]);
@@ -336,10 +400,10 @@ export default function HomePage() {
                                     {rate && historyRate ? (
                                         <div>
                                             <p className="card-text text-muted mb-2">
-                                                1 {base} = {" "}
+                                                {JPYValue} {base} = {" "}
                                             </p>
                                             <h3 className="fw-bold">
-                                                {Math.floor(rate.JPY * 100) / 100} 円
+                                                {(Math.floor(rate.JPY * 100 * JPYValue) / 100)} 円
                                             </h3>
                                             <small
                                                 className={`fw-bold ${
@@ -349,9 +413,9 @@ export default function HomePage() {
                                                 }`}
                                             >
                                                 {rate.JPY - historyRate.JPY >= 0 ? "+" : "-"}
-                                                {Math.floor(
-                                                    Math.abs(rate.JPY - historyRate.JPY) * 100
-                                                ) / 100}{" "}
+                                                {(Math.floor(
+                                                    Math.abs(rate.JPY - historyRate.JPY) * 100 * JPYValue
+                                                ) / 100)}{" "}
                                                 (先週比)
                                             </small>
                                         </div>
@@ -369,36 +433,38 @@ export default function HomePage() {
                                             height: "100%",
                                             minHeight: "150px"
                                         }}>
-                                            <ResponsiveContainer width="100%" height="100%">
+                                            <ResponsiveContainer width="90%" height="90%">
                                                 <LineChart
                                                     data={Object.entries(weeklyRateTimeSeries || {})
                                                         .map(([date, currency]) => ({
                                                             date: date,
-                                                            rate: currency.JPY
+                                                            rate: (Math.floor(currency.JPY * 100 * JPYValue) / 100)
                                                         }))
                                                         .sort(
                                                             (a, b) =>
                                                                 new Date(a.date).getTime() - new Date(b.date).getTime()
                                                         )}
                                                 >
+
                                                     <CartesianGrid strokeDasharray="3 3"/>
                                                     <XAxis
                                                         dataKey="date"
                                                         tickFormatter={(dateStr) => {
-                                                            const [year, month, day] = dateStr.split("-");
+                                                            const [_, month, day] = dateStr.split("-");
                                                             return `${month}/${day}`;
                                                         }}
                                                     />
-                                                    <YAxis
-                                                        domain={['dataMin', 'dataMax']}
-                                                        allowDecimals={false}/>
+                                                    <YAxis domain={['dataMin', 'dataMax']} allowDecimals={false}/>
                                                     <Tooltip/>
+
                                                     <Line
                                                         type="monotone"
                                                         dataKey="rate"
                                                         stroke="#8884d8"
                                                         strokeWidth={2}
+                                                        dot={true}
                                                     />
+
                                                 </LineChart>
                                             </ResponsiveContainer>
                                         </div>
