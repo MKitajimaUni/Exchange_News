@@ -4,9 +4,10 @@ export async function GET(request: Request) {
     const {searchParams} = new URL(request.url);
     const size = searchParams.get("size");
     const query = searchParams.get("query");
+    const country = searchParams.get("country");
     const cacheTTL = 1800 // 3 hours, to reduce actual API calls
 
-    if (!size) {
+    if (!(size && country && query)) {
         return NextResponse.json({error: "missing parameter"}, {status: 400});
     }
 

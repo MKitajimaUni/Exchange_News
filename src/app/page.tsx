@@ -43,6 +43,8 @@ export default function HomePage() {
     const WEEK_LENGTH = 7;
     const [JPYValue, setJPYValue] = useState<number>(1);
     const [selectedJPYValue, setSelectedJPYValue] = useState<number>(1);
+    const [currencyType, setCurrencyType] = useState("USD");
+    const [selectedCurrencyType, setSelectedCurrencyType] = useState("USD");
 
     const flagMap: Record<string, string> = {
         USD: "🇺🇸",
@@ -106,9 +108,9 @@ export default function HomePage() {
             }
         };
 
-        const fetchNewsList = async (size: number, query: string) => {
+        const fetchNewsList = async (size: number, query: string, country: string) => {
             try {
-                const res = await fetch(`/api/news?size=${size}&query=${query}`);
+                const res = await fetch(`/api/news?size=${size}&query=${query}&country=${country}`);
                 const data = await res.json();
                 setNewsList(data.news_results);
             } catch (error) {
@@ -124,7 +126,7 @@ export default function HomePage() {
         fetchHistory(lastWeek.toISOString().split("T")[0]);
 
         setNewsList([]);
-        fetchNewsList(10, "為替"); // initial news list
+        fetchNewsList(10, "為替", "jp"); // initial news list
 
         setCurrentDate(new Date());
     }, []);
@@ -337,13 +339,19 @@ export default function HomePage() {
             {/* search form */}
             <section className="mb-5">
                 <h2 className="mb-3">通貨検索</h2>
+
+                {/* 検索フォーム */}
                 <div className="d-flex flex-wrap align-items-center gap-2">
-                    <div className="d-flex align-items-center gap-1">
-                        <label className="form-label mb-0">通貨を選択:</label>
+                    {/* 通貨選択 */}
+                    <div className="input-group w-auto">
+                        <label className="input-group-text">通貨</label>
                         <select
-                            className="form-select w-auto"
+                            className="form-select"
                             value={selectedBase}
-                            onChange={(e) => setSelectedBase(e.target.value)}
+                            onChange={(e) => {
+                                setSelectedCurrencyType(e.target.value);
+                                setSelectedBase(e.target.value);
+                            }}
                         >
                             <option value="USD">🇺🇸 USD</option>
                             <option value="CNY">🇨🇳 CNY</option>
@@ -358,116 +366,158 @@ export default function HomePage() {
                             <option value="CHF">🇨🇭 CHF</option>
                         </select>
                     </div>
-                    <div className="d-flex align-items-center gap-1">
-                        <label className="form-label mb-0 ms-2">金額（円）:</label>
+
+                    {/* 金額入力 */}
+                    <div className="input-group w-auto">
+                        <label className="input-group-text">金額</label>
                         <input
                             type="number"
-                            className="form-control w-auto"
+                            className="form-control no-spin"
                             min="1"
                             step="1"
                             placeholder="1"
-                            style={{maxWidth: "6rem"}}
+                            style={{minWidth: "6rem"}}
                             onChange={(e) => {
                                 const val = Number(e.target.value);
-                                isNaN(val) || val < 1 ? setSelectedJPYValue(1) : setSelectedJPYValue(val);
+                                isNaN(val) || val < 1
+                                    ? setSelectedJPYValue(1)
+                                    : setSelectedJPYValue(val);
                             }}
                         />
+                        <select
+                            className="form-select"
+                            onChange={(e) => setSelectedCurrencyType(e.target.value)}
+                        >
+                            <option value={selectedBase}>{selectedBase}→JPY</option>
+                            <option value="JPY">JPY→{selectedBase}</option>
+                        </select>
                     </div>
-                    <button className="btn btn-primary" onClick={() => {
-                        const date = new Date();
-                        const lastWeek = new Date(date.setDate(date.getDate() - 7));
 
-                        isNaN(JPYValue) || JPYValue < 1 ? setJPYValue(1): setJPYValue(selectedJPYValue);
+                    {/* 検索ボタン */}
+                    <button
+                        className="btn btn-primary"
+                        onClick={() => {
+                            const date = new Date();
+                            const lastWeek = new Date(date.setDate(date.getDate() - 7));
 
+                            isNaN(JPYValue) || JPYValue < 1
+                                ? setJPYValue(1)
+                                : setJPYValue(selectedJPYValue);
+                            setCurrencyType(selectedCurrencyType);
 
-                        fetchSpecificCurrency();
-                        fetchSpecificHistory(lastWeek.toISOString().split("T")[0]);
-                        fetchWeeklyRateTimeSeries();
-                    }
-                    }
+                            fetchSpecificCurrency();
+                            fetchSpecificHistory(lastWeek.toISOString().split("T")[0]);
+                            fetchWeeklyRateTimeSeries();
+                        }}
                     >
                         検索
                     </button>
+                    <div className="mt-auto justify-content-between align-items-center">
+                        <small className="text-secondary">
+                            小数点第二位以下切り捨て表示となっているため、正確な金額が反映されない場合があります。
+                        </small>
+                    </div>
                 </div>
 
-                {/* result */}
-                {loading && <p className="mt-3"> 読み込み中...</p>}
+                {/* ローディング表示 */}
+                {loading && <p className="mt-3">読み込み中...</p>}
+
+                {/* 結果表示 */}
                 {rate && historyRate && (
-                    <div className="col-12">
+                    <div className="col-12 mt-3">
                         <div className="card shadow-sm border-0">
                             <div className="row g-0">
-
-                                {/* 右側: 為替レート */}
+                                {/* 現在のレート */}
                                 <div className="col-md-4 d-flex flex-column p-3">
-
                                     {rate && historyRate ? (
                                         <div>
                                             <p className="card-text text-muted mb-2">
-                                                {JPYValue} {base} = {" "}
+                                                {JPYValue} {currencyType} ={" "}
                                             </p>
                                             <h3 className="fw-bold">
-                                                {(Math.floor(rate.JPY * 100 * JPYValue) / 100)} 円
+                                                {currencyType !== "JPY"
+                                                    ? `${(Math.floor(rate.JPY * 100 * JPYValue) / 100).toLocaleString()} 円`
+                                                    : `${(Math.floor((JPYValue / rate.JPY) * 100) / 100).toLocaleString()} ${base}`}
                                             </h3>
-                                            <small
-                                                className={`fw-bold ${
-                                                    rate.JPY - historyRate.JPY >= 0
-                                                        ? "text-danger"
-                                                        : "text-success"
-                                                }`}
-                                            >
-                                                {rate.JPY - historyRate.JPY >= 0 ? "+" : "-"}
-                                                {(Math.floor(
-                                                    Math.abs(rate.JPY - historyRate.JPY) * 100 * JPYValue
-                                                ) / 100)}{" "}
-                                                (先週比)
-                                            </small>
+
+                                            {/* 先週比 */}
+                                            {(() => {
+                                                const currentRate =
+                                                    currencyType !== "JPY"
+                                                        ? rate.JPY
+                                                        : 1 / rate.JPY;
+                                                const lastWeekRate =
+                                                    currencyType !== "JPY"
+                                                        ? historyRate.JPY
+                                                        : 1 / historyRate.JPY;
+                                                const diff = (currentRate - lastWeekRate) * JPYValue;
+                                                const sign = diff >= 0 ? "+" : "-";
+
+                                                return (
+                                                    <small
+                                                        className={`fw-bold ${
+                                                            diff >= 0 ? "text-danger" : "text-success"
+                                                        }`}
+                                                    >
+                                                        {sign}
+                                                        {Math.abs(Math.floor(diff * 100) / 100)} (先週比)
+                                                    </small>
+                                                );
+                                            })()}
                                         </div>
                                     ) : (
                                         <p className="text-muted">レートデータを取得してください</p>
                                     )}
                                 </div>
 
-                                {/* 左側: グラフ（アスペクト比固定） */}
+                                {/* グラフ */}
                                 <div className="col-md-8">
                                     {Object.keys(weeklyRateTimeSeries || {}).length > 0 ? (
-                                        <div style={{
-                                            alignContent: "center",
-                                            width: "100%",
-                                            height: "100%",
-                                            minHeight: "150px"
-                                        }}>
+                                        <div
+                                            style={{
+                                                alignContent: "center",
+                                                width: "100%",
+                                                height: "100%",
+                                                minHeight: "150px",
+                                            }}
+                                        >
                                             <ResponsiveContainer width="90%" height="90%">
                                                 <LineChart
                                                     data={Object.entries(weeklyRateTimeSeries || {})
                                                         .map(([date, currency]) => ({
-                                                            date: date,
-                                                            rate: (Math.floor(currency.JPY * 100 * JPYValue) / 100)
+                                                            date,
+                                                            rate:
+                                                                currencyType !== "JPY"
+                                                                    ? Math.floor(currency.JPY * 100 * JPYValue) / 100
+                                                                    : Math.floor((JPYValue / currency.JPY) * 100) /
+                                                                    100,
                                                         }))
                                                         .sort(
                                                             (a, b) =>
-                                                                new Date(a.date).getTime() - new Date(b.date).getTime()
+                                                                new Date(a.date).getTime() -
+                                                                new Date(b.date).getTime()
                                                         )}
                                                 >
-
                                                     <CartesianGrid strokeDasharray="3 3"/>
                                                     <XAxis
                                                         dataKey="date"
                                                         tickFormatter={(dateStr) => {
-                                                            const [_, month, day] = dateStr.split("-");
+                                                            const [, month, day] = dateStr.split("-");
                                                             return `${month}/${day}`;
                                                         }}
                                                     />
-                                                    <YAxis domain={['dataMin', 'dataMax']} allowDecimals={false}/>
+                                                    <YAxis
+                                                        domain={["dataMin", "dataMax"]}
+                                                        allowDecimals={false}
+                                                    />
                                                     <Tooltip/>
-
                                                     <Line
                                                         type="monotone"
                                                         dataKey="rate"
                                                         stroke="#8884d8"
                                                         strokeWidth={2}
-                                                        dot={true}
+                                                        dot
                                                     />
-
                                                 </LineChart>
                                             </ResponsiveContainer>
                                         </div>
@@ -482,16 +532,17 @@ export default function HomePage() {
                                 </div>
                             </div>
                         </div>
+
+                        {/* 更新日 */}
                         <div className="mt-auto d-flex justify-content-between align-items-center">
                             <small className="text-secondary">
                                 更新日: {new Date().toLocaleDateString()}
                             </small>
                         </div>
                     </div>
-
-
                 )}
             </section>
+
             {/* news list */}
             <section>
                 <h2 className="mb-4">円為替に関する最新ニュース</h2>
