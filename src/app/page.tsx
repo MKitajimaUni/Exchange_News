@@ -350,7 +350,6 @@ export default function HomePage() {
                             className="form-select"
                             value={selectedBase}
                             onChange={(e) => {
-                                setSelectedTargetCurrencyType(e.target.value);
                                 setSelectedBase(e.target.value);
                             }}
                         >
