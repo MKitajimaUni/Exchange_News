@@ -350,6 +350,7 @@ export default function HomePage() {
                             className="form-select"
                             value={selectedBase}
                             onChange={(e) => {
+                                setSelectedTargetCurrencyType(e.target.value);
                                 setSelectedBase(e.target.value);
                             }}
                         >
@@ -386,6 +387,7 @@ export default function HomePage() {
                         />
                         <select
                             className="form-select"
+                            value={selectedTargetCurrencyType}
                             onChange={(e) => setSelectedTargetCurrencyType(e.target.value)}
                         >
                             <option value={selectedBase}>{selectedBase}→JPY</option>
