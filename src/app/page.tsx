@@ -2,6 +2,7 @@
 
 import {useEffect, useState} from "react";
 import {LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid, ResponsiveContainer} from "recharts";
+import NewsSection from "../components/news_section";
 
 type CurrentCurrency = {
     date: string;
@@ -42,9 +43,9 @@ export default function HomePage() {
     const [weeklyRateTimeSeries, setWeeklyRateTimeSeries] = useState<Record<string, CurrentCurrency>>();
     const WEEK_LENGTH = 7;
     const [JPYValue, setJPYValue] = useState<number>(1);
-    const [selectedJPYValue, setSelectedJPYValue] = useState<number>(1);
-    const [currencyType, setCurrencyType] = useState("USD");
-    const [selectedCurrencyType, setSelectedCurrencyType] = useState("USD");
+    const [selectedCurrencyAmount, setSelectedCurrencyAmount] = useState(1);
+    const [targetCurrencyType, setTargetCurrencyType] = useState("USD");
+    const [selectedTargetCurrencyType, setSelectedTargetCurrencyType] = useState("USD");
 
     const flagMap: Record<string, string> = {
         USD: "🇺🇸",
@@ -126,7 +127,7 @@ export default function HomePage() {
         fetchHistory(lastWeek.toISOString().split("T")[0]);
 
         setNewsList([]);
-        fetchNewsList(10, "為替", "jp"); // initial news list
+        fetchNewsList(50, "為替", "jp"); // initial news list
 
         setCurrentDate(new Date());
     }, []);
@@ -349,7 +350,7 @@ export default function HomePage() {
                             className="form-select"
                             value={selectedBase}
                             onChange={(e) => {
-                                setSelectedCurrencyType(e.target.value);
+                                setSelectedTargetCurrencyType(e.target.value);
                                 setSelectedBase(e.target.value);
                             }}
                         >
@@ -380,13 +381,13 @@ export default function HomePage() {
                             onChange={(e) => {
                                 const val = Number(e.target.value);
                                 isNaN(val) || val < 1
-                                    ? setSelectedJPYValue(1)
-                                    : setSelectedJPYValue(val);
+                                    ? setSelectedCurrencyAmount(1)
+                                    : setSelectedCurrencyAmount(val);
                             }}
                         />
                         <select
                             className="form-select"
-                            onChange={(e) => setSelectedCurrencyType(e.target.value)}
+                            onChange={(e) => setSelectedTargetCurrencyType(e.target.value)}
                         >
                             <option value={selectedBase}>{selectedBase}→JPY</option>
                             <option value="JPY">JPY→{selectedBase}</option>
@@ -402,8 +403,8 @@ export default function HomePage() {
 
                             isNaN(JPYValue) || JPYValue < 1
                                 ? setJPYValue(1)
-                                : setJPYValue(selectedJPYValue);
-                            setCurrencyType(selectedCurrencyType);
+                                : setJPYValue(selectedCurrencyAmount);
+                            setTargetCurrencyType(selectedTargetCurrencyType);
 
                             fetchSpecificCurrency();
                             fetchSpecificHistory(lastWeek.toISOString().split("T")[0]);
@@ -432,10 +433,10 @@ export default function HomePage() {
                                     {rate && historyRate ? (
                                         <div>
                                             <p className="card-text text-muted mb-2">
-                                                {JPYValue} {currencyType} ={" "}
+                                                {JPYValue} {targetCurrencyType} ={" "}
                                             </p>
                                             <h3 className="fw-bold">
-                                                {currencyType !== "JPY"
+                                                {targetCurrencyType !== "JPY"
                                                     ? `${(Math.floor(rate.JPY * 100 * JPYValue) / 100).toLocaleString()} 円`
                                                     : `${(Math.floor((JPYValue / rate.JPY) * 100) / 100).toLocaleString()} ${base}`}
                                             </h3>
@@ -443,11 +444,11 @@ export default function HomePage() {
                                             {/* 先週比 */}
                                             {(() => {
                                                 const currentRate =
-                                                    currencyType !== "JPY"
+                                                    targetCurrencyType !== "JPY"
                                                         ? rate.JPY
                                                         : 1 / rate.JPY;
                                                 const lastWeekRate =
-                                                    currencyType !== "JPY"
+                                                    targetCurrencyType !== "JPY"
                                                         ? historyRate.JPY
                                                         : 1 / historyRate.JPY;
                                                 const diff = (currentRate - lastWeekRate) * JPYValue;
@@ -487,7 +488,7 @@ export default function HomePage() {
                                                         .map(([date, currency]) => ({
                                                             date,
                                                             rate:
-                                                                currencyType !== "JPY"
+                                                                targetCurrencyType !== "JPY"
                                                                     ? Math.floor(currency.JPY * 100 * JPYValue) / 100
                                                                     : Math.floor((JPYValue / currency.JPY) * 100) /
                                                                     100,
@@ -544,62 +545,11 @@ export default function HomePage() {
             </section>
 
             {/* news list */}
-            <section>
-                <h2 className="mb-4">円為替に関する最新ニュース</h2>
-                <div className="row g-4">
-                    {newsList.map((item) => (
-                        <div className="col-12" key={item.position}>
-                            <div className="card shadow-sm border-0">
-                                <div className="row g-0">
-                                    {/* left is thumbnail */}
-                                    <div className="col-md-4">
-                                        {item.thumbnail ? (
-                                            <img
-                                                src={item.thumbnail}
-                                                alt={item.title}
-                                                className="img-fluid w-100 h-100"
-                                                style={{objectFit: "cover"}}
-                                            />
-                                        ) : (
-                                            <div
-                                                className="bg-light d-flex align-items-center justify-content-center h-100"
-                                                style={{minHeight: "180px"}}
-                                            >
-                                                <span className="text-muted small">No Image</span>
-                                            </div>
-                                        )}
-                                    </div>
-                                    {/* right is text */}
-                                    <div className="col-md-8 d-flex flex-column p-3">
-                                        <h5 className="card-title mb-2">
-                                            <a
-                                                href={item.link}
-                                                target="_blank"
-                                                rel="noopener noreferrer"
-                                                className="stretched-link text-decoration-none"
-                                            >
-                                                {item.title}
-                                            </a>
-                                        </h5>
-                                        <p className="card-text text-muted small mb-3">
-                                            {item.snippet.length > 100
-                                                ? item.snippet.slice(0, 100) + "..."
-                                                : item.snippet}
-                                        </p>
-                                        <div className="mt-auto d-flex justify-content-between align-items-center">
-                                            <small className="text-secondary">{item.source}</small>
-                                            <small className="text-secondary">{item.date}</small>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    ))}
-                </div>
-            </section>
+            <NewsSection newsList={newsList} />
         </div>
     );
 
 
 }
+
 

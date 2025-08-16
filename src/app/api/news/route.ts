@@ -5,7 +5,7 @@ export async function GET(request: Request) {
     const size = searchParams.get("size");
     const query = searchParams.get("query");
     const country = searchParams.get("country");
-    const cacheTTL = 1800 // 3 hours, to reduce actual API calls
+    const cacheTTL = 43200// 12 hours, to reduce actual API calls
 
     if (!(size && country && query)) {
         return NextResponse.json({error: "missing parameter"}, {status: 400});
@@ -19,7 +19,7 @@ export async function GET(request: Request) {
     try {
         const res = await fetch(
             `https://serpapi.com/search?api_key=${token}&engine=google_news_light&q=${query}&num=${size}`,
-            { next: { revalidate: cacheTTL } }
+            {next: {revalidate: cacheTTL}}
         );
         const data = await res.json();
         return NextResponse.json(data);
